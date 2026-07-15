@@ -1,0 +1,7 @@
+[Unit]
+Description=Send FVE metrics to Zabbix via zabbix_sender
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root/fve/
+ExecStart=/root/fve/bin/python3 /root/fve/send_zabbix.py

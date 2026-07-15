@@ -1,0 +1,7 @@
+[Unit]
+Description=Run SG2 output from venv
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root/fve/
+ExecStart=/root/fve/bin/python3 /root/fve/main.py --start 06:00 --end 19:00 --input_id 1 --soc-threshold 80.0 --pv-threshold 2.0

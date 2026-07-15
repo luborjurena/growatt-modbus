@@ -1,0 +1,139 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: ae11d840e14f472d9d56c77047d6d5e9
+      name: Templates/FVE
+  templates:
+    - uuid: f25ed9b8ec6f4346aa13b260c61d76a2
+      template: 'Growatt FVE Inverter'
+      name: 'Growatt FVE Inverter'
+      description: 'Power flow and battery state pushed by send_zabbix.py via zabbix_sender.'
+      groups:
+        - name: Templates/FVE
+      items:
+        - uuid: f07db0fe1347491991db4ab49dff4c11
+          name: 'PV power'
+          type: TRAP
+          key: fve.pv.power
+          value_type: FLOAT
+          units: W
+          triggers:
+            - uuid: 8c6dbc03bf0448d580e7ccf69da9fb94
+              expression: 'nodata(/Growatt FVE Inverter/fve.pv.power,15m)=1'
+              name: 'FVE: no data received for 15m'
+              priority: WARNING
+              description: 'send_zabbix.py (via the fve-cache/systemd timer chain) has not reported in 15 minutes - check the timer, the venv, and the Modbus link to 192.168.10.105:4196.'
+        - uuid: 7cebe6483d8541aab8d37bad34cbb55a
+          name: 'Battery charge power'
+          type: TRAP
+          key: fve.charge.power
+          value_type: FLOAT
+          units: W
+        - uuid: 65c84e8e675e45b19e87130f2aefa8b9
+          name: 'Battery discharge power'
+          type: TRAP
+          key: fve.discharge.power
+          value_type: FLOAT
+          units: W
+        - uuid: e89d0710e6d74716978b8b13abc9e701
+          name: 'Consumption power'
+          type: TRAP
+          key: fve.consumption.power
+          value_type: FLOAT
+          units: W
+        - uuid: dc651fa1e1e44307aa20ef0a8e89bb1c
+          name: 'Grid import power'
+          type: TRAP
+          key: fve.import.power
+          value_type: FLOAT
+          units: W
+        - uuid: 11ae348ed51c486891cacb3019afda2d
+          name: 'Grid export power'
+          type: TRAP
+          key: fve.export.power
+          value_type: FLOAT
+          units: W
+        - uuid: fda4b44e7dd2432a884695a62b5daa4e
+          name: 'Battery SOC'
+          type: TRAP
+          key: fve.battery.soc
+          value_type: UNSIGNED
+          units: '%'
+        - uuid: 4cf274d636794fd481cbd3b98d1d2db4
+          name: 'Battery voltage'
+          type: TRAP
+          key: fve.battery.voltage
+          value_type: FLOAT
+          units: V
+        - uuid: 67d41cd7b81e4eacb7c30d3ee5c5b945
+          name: 'Battery temperature'
+          type: TRAP
+          key: fve.battery.temp
+          value_type: FLOAT
+          units: °C
+        - uuid: 843687ce60bb43d9874c4e88b2d4f1e8
+          name: 'Battery SOH'
+          type: TRAP
+          key: fve.battery.soh
+          value_type: UNSIGNED
+          units: '%'
+        - uuid: 13c3caa84cc841df950482fba8faae52
+          name: 'Battery cycle count'
+          type: TRAP
+          key: fve.battery.cycles
+          value_type: UNSIGNED
+  graphs:
+    - uuid: 0781faf141724b1f94de830e40e708a4
+      name: 'Power flow'
+      graph_items:
+        - color: FFC300
+          item:
+            host: 'Growatt FVE Inverter'
+            key: fve.pv.power
+        - color: 3366FF
+          item:
+            host: 'Growatt FVE Inverter'
+            key: fve.consumption.power
+        - color: FF3333
+          item:
+            host: 'Growatt FVE Inverter'
+            key: fve.import.power
+        - color: 33CC33
+          item:
+            host: 'Growatt FVE Inverter'
+            key: fve.export.power
+    - uuid: 6cbf5349859a4521b46a3b890c8f5d4d
+      name: 'Battery power'
+      graph_items:
+        - color: '009900'
+          item:
+            host: 'Growatt FVE Inverter'
+            key: fve.charge.power
+        - color: CC0000
+          item:
+            host: 'Growatt FVE Inverter'
+            key: fve.discharge.power
+    - uuid: 37a37a10a6484732af5dedbde546d8e0
+      name: 'Battery charge state'
+      graph_items:
+        - color: 0066CC
+          item:
+            host: 'Growatt FVE Inverter'
+            key: fve.battery.soc
+        - color: 9933CC
+          item:
+            host: 'Growatt FVE Inverter'
+            key: fve.battery.soh
+    - uuid: 8a68e844c94a41b69ccb359a75b5cb86
+      name: 'Battery voltage & temperature'
+      graph_items:
+        - color: '006600'
+          yaxisside: LEFT
+          item:
+            host: 'Growatt FVE Inverter'
+            key: fve.battery.voltage
+        - color: FF6600
+          yaxisside: RIGHT
+          item:
+            host: 'Growatt FVE Inverter'
+            key: fve.battery.temp

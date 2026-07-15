@@ -1,0 +1,8 @@
+[Unit]
+Description=Run make_cache.py from venv
+OnSuccess=fve-sg2.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root/fve/
+ExecStart=/root/fve/bin/python /root/fve/make_cache.py
