@@ -16,6 +16,21 @@ DISCHARGE_TO_STANDBY_REASONS = {
     11: "Forbid by BMS",
 }
 
+# System work mode for input register 1000 (uwSysWorkMode), per the bundled
+# Growatt protocol PDF. 0x09 was added in a later protocol revision without a
+# documented meaning, so it falls back to "unknown" below.
+SYS_WORK_MODES = {
+    0x00: "Waiting",
+    0x01: "Self-test",
+    0x02: "Reserved",
+    0x03: "Fault",
+    0x04: "Flash",
+    0x05: "PV & Bat Online",
+    0x06: "Bat Online",
+    0x07: "PV Offline",
+    0x08: "Bat Offline",
+}
+
 client = ModbusTcpClient('192.168.10.105', port=4196)
 client.connect()
 
@@ -33,6 +48,7 @@ if not r.isError():
     soc = regs[14]              # 1014
     vbat = regs[13] / 10.0      # 1013
     batt_temp = regs[40] / 10.0 # 1040
+    discharge_watt = to_watt(regs, 9)     # 1009,1010 Pdischarge1 H,L
     charge_watt = to_watt(regs, 11)       # 1011,1012 Pcharge1 H,L
     consumption_watt = to_watt(regs, 37)  # 1037,1038 PLocalLoad total H,L
     import_watt = to_watt(regs, 21)       # 1021,1022 PactouserTotal H,L
@@ -47,11 +63,13 @@ if not r.isError():
     bms_max_curr = regs[90]                  # 1090 BMS_MaxCurr (max charge/discharge current from BMS/pylon, scale unconfirmed)
     fault_words = regs[1:9]     # 1001-1008 Systemfault word0-7 (no bit-level reference in this doc)
 
-    print(f"SysWorkMode: {sys_mode} (0x{sys_mode:02x})")
+    mode_name = SYS_WORK_MODES.get(sys_mode, f"unknown (0x{sys_mode:02x})")
+    print(f"SysWorkMode: {sys_mode} (0x{sys_mode:02x}) - {mode_name}")
     print(f"SOC: {soc}%")
     print(f"Vbat: {vbat:.1f} V")
     print(f"Battery temp: {batt_temp:.1f} °C")
     print(f"Charging: {charge_watt:.1f} W")
+    print(f"Discharging: {discharge_watt:.1f} W")
     print(f"Consumption: {consumption_watt:.1f} W")
     print(f"Import: {import_watt:.1f} W")
     print(f"Export: {export_watt:.1f} W")
