@@ -14,6 +14,13 @@ PRIORITY_NAMES = {v: k for k, v in PRIORITY_MODES.items()}
 # Priority is set to Battery. Has no effect in other modes.
 BAT_CHARGE_POWER_RATE_REGISTER = 1090
 
+# GridFirstDischargePowerRate: discharge power rate (% of rated power) applied
+# when Priority is set to Grid. Has no effect in other modes.
+GRID_DISCHARGE_POWER_RATE_REGISTER = 1070
+
+POWER_RATE_REGISTERS = {"battery": BAT_CHARGE_POWER_RATE_REGISTER, "grid": GRID_DISCHARGE_POWER_RATE_REGISTER}
+POWER_RATE_LABELS = {"battery": "charge power rate", "grid": "discharge power rate"}
+
 # AC charge switch when Priority is Battery (1=allow charging from AC, 0=forbid).
 AC_CHARGE_REGISTER = 1092
 AC_CHARGE_MODES = {"forbid": 0, "allow": 1}
@@ -73,7 +80,7 @@ def set_priority(mode: str, power_rate: int = None, start_time: str = None, end_
         write(PRIORITY_REGISTER, PRIORITY_MODES[mode], "priority")
 
         if power_rate is not None:
-            write(BAT_CHARGE_POWER_RATE_REGISTER, power_rate, "power rate")
+            write(POWER_RATE_REGISTERS[mode], power_rate, POWER_RATE_LABELS[mode])
 
         if start_time is not None and end_time is not None:
             start_reg, stop_reg, enable_reg = SCHEDULE_REGISTERS[mode]
@@ -86,7 +93,7 @@ def set_priority(mode: str, power_rate: int = None, start_time: str = None, end_
 
         readback = {"priority": read(PRIORITY_REGISTER, "priority")}
         if power_rate is not None:
-            readback["power_rate"] = read(BAT_CHARGE_POWER_RATE_REGISTER, "power rate")
+            readback["power_rate"] = read(POWER_RATE_REGISTERS[mode], POWER_RATE_LABELS[mode])
         if start_time is not None and end_time is not None:
             start_reg, stop_reg, enable_reg = SCHEDULE_REGISTERS[mode]
             readback["start_time"] = read(start_reg, "start time")
@@ -103,8 +110,8 @@ def main():
     parser = argparse.ArgumentParser(description="Set Growatt inverter priority mode (holding register 1044)")
     parser.add_argument("mode", choices=sorted(PRIORITY_MODES), help="Priority mode to set")
     parser.add_argument("--power-rate", type=int, metavar="0-100",
-                         help="Charge power rate to set when mode is 'battery' (percent of rated power, "
-                              "register 1090)")
+                         help="Power rate to set (percent of rated power): charge power rate when mode is "
+                              "'battery' (register 1090), discharge power rate when mode is 'grid' (register 1070)")
     parser.add_argument("--start-time", metavar="HH:MM",
                          help="Schedule start time when mode is 'battery' or 'grid' "
                               "(register 1100/1080 respectively, default 00:00)")
@@ -118,8 +125,10 @@ def main():
     parser.add_argument("--device-id", type=int, default=DEVICE_ID, help="Modbus device/unit ID")
     args = parser.parse_args()
 
-    if (args.power_rate is not None or args.ac_charge is not None) and args.mode != "battery":
-        parser.error("--power-rate/--ac-charge only apply when mode is 'battery'")
+    if args.power_rate is not None and args.mode not in POWER_RATE_REGISTERS:
+        parser.error("--power-rate only applies when mode is 'battery' or 'grid'")
+    if args.ac_charge is not None and args.mode != "battery":
+        parser.error("--ac-charge only applies when mode is 'battery'")
     if (args.start_time is not None or args.end_time is not None) and args.mode not in SCHEDULE_REGISTERS:
         parser.error("--start-time/--end-time only apply when mode is 'battery' or 'grid'")
 
@@ -144,7 +153,8 @@ def main():
     print(f"Priority set to '{args.mode}' (register {PRIORITY_REGISTER} now reads {result['priority']}: "
           f"{PRIORITY_NAMES.get(result['priority'], 'unknown')})")
     if "power_rate" in result:
-        print(f"Charge power rate set (register {BAT_CHARGE_POWER_RATE_REGISTER} now reads {result['power_rate']}%)")
+        reg = POWER_RATE_REGISTERS[args.mode]
+        print(f"{POWER_RATE_LABELS[args.mode].capitalize()} set (register {reg} now reads {result['power_rate']}%)")
     if "start_time" in result:
         start_reg, stop_reg, _ = SCHEDULE_REGISTERS[args.mode]
         print(f"{SCHEDULE_LABELS[args.mode]} schedule set (register {start_reg} now reads "
