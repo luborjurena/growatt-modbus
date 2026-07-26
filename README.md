@@ -9,6 +9,7 @@ Local Modbus TCP monitoring and automation for a Growatt hybrid inverter (SPH-ty
 ## Components
 
 - **`check.py`** — one-shot diagnostic dump: PV power, battery state (SOC, voltage, temp, SOH, cycle count), charge/discharge/consumption/export power, and a BMS-vs-inverter cross-check. Useful for manually verifying the Modbus link and register mapping.
+- **`check_version.py`** — one-shot dump of inverter firmware/build versions and BMS software/hardware version registers. The BMS version fields (input registers 1093, 1101, 1102, 1216, 1217) have no documented format/unit and may read as `0` if the connected BMS/battery pack doesn't populate them.
 - **`make_cache.py`** — polls the Modbus server and writes a small rolling cache (`/tmp/growatt_cache.txt`) of PV power, grid export, SOC, and charging state. Decouples data collection from the heater-control decision below; on a Modbus failure it caches zeros instead of crashing.
 - **`main.py`** — reads that cache and decides whether to turn the water heater on/off via an HTTP relay, based on SOC/export/PV thresholds. Requires two consecutive matching decisions before acting (debounce), and always fails safe to "off" on error.
 - **`send_zabbix.py`** — reads live values directly from Modbus (PV power, charge/discharge/consumption/import/export power, SOC, voltage, temp, SOH, cycle count) and pushes them to a Zabbix server in one batch via `zabbix_sender`.

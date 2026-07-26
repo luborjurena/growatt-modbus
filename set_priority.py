@@ -21,6 +21,10 @@ GRID_DISCHARGE_POWER_RATE_REGISTER = 1070
 POWER_RATE_REGISTERS = {"battery": BAT_CHARGE_POWER_RATE_REGISTER, "grid": GRID_DISCHARGE_POWER_RATE_REGISTER}
 POWER_RATE_LABELS = {"battery": "charge power rate", "grid": "discharge power rate"}
 
+# wBatFirst stop SOC: SOC (%) at which charging stops when Priority is Battery.
+# Has no effect in other modes.
+BAT_STOP_SOC_REGISTER = 1091
+
 # AC charge switch when Priority is Battery (1=allow charging from AC, 0=forbid).
 AC_CHARGE_REGISTER = 1092
 AC_CHARGE_MODES = {"forbid": 0, "allow": 1}
@@ -59,8 +63,8 @@ def format_time(value: int) -> str:
 
 
 def set_priority(mode: str, power_rate: int = None, start_time: str = None, end_time: str = None,
-                  ac_charge: str = None, host: str = MODBUS_HOST, port: int = MODBUS_PORT,
-                  device_id: int = DEVICE_ID) -> dict:
+                  ac_charge: str = None, stop_soc: int = None, host: str = MODBUS_HOST,
+                  port: int = MODBUS_PORT, device_id: int = DEVICE_ID) -> dict:
     client = ModbusTcpClient(host, port=port)
     try:
         if not client.connect():
@@ -88,6 +92,9 @@ def set_priority(mode: str, power_rate: int = None, start_time: str = None, end_
             write(stop_reg, parse_time(end_time), "end time")
             write(enable_reg, 1, "schedule enable")
 
+        if stop_soc is not None:
+            write(BAT_STOP_SOC_REGISTER, stop_soc, "charge stop SOC")
+
         if ac_charge is not None:
             write(AC_CHARGE_REGISTER, AC_CHARGE_MODES[ac_charge], "AC charge")
 
@@ -98,6 +105,8 @@ def set_priority(mode: str, power_rate: int = None, start_time: str = None, end_
             start_reg, stop_reg, enable_reg = SCHEDULE_REGISTERS[mode]
             readback["start_time"] = read(start_reg, "start time")
             readback["end_time"] = read(stop_reg, "end time")
+        if stop_soc is not None:
+            readback["stop_soc"] = read(BAT_STOP_SOC_REGISTER, "charge stop SOC")
         if ac_charge is not None:
             readback["ac_charge"] = read(AC_CHARGE_REGISTER, "AC charge")
 
@@ -118,6 +127,8 @@ def main():
     parser.add_argument("--end-time", metavar="HH:MM",
                          help="Schedule end time when mode is 'battery' or 'grid' "
                               "(register 1101/1081 respectively, default 23:59)")
+    parser.add_argument("--stop-soc", type=int, metavar="0-100",
+                         help="SOC (percent) at which charging stops when mode is 'battery' (register 1091)")
     parser.add_argument("--ac-charge", choices=sorted(AC_CHARGE_MODES),
                          help="Allow/forbid charging from AC when mode is 'battery' (register 1092, default allow)")
     parser.add_argument("--host", default=MODBUS_HOST, help="Modbus TCP server host")
@@ -127,6 +138,8 @@ def main():
 
     if args.power_rate is not None and args.mode not in POWER_RATE_REGISTERS:
         parser.error("--power-rate only applies when mode is 'battery' or 'grid'")
+    if args.stop_soc is not None and args.mode != "battery":
+        parser.error("--stop-soc only applies when mode is 'battery'")
     if args.ac_charge is not None and args.mode != "battery":
         parser.error("--ac-charge only applies when mode is 'battery'")
     if (args.start_time is not None or args.end_time is not None) and args.mode not in SCHEDULE_REGISTERS:
@@ -134,6 +147,8 @@ def main():
 
     if args.power_rate is not None and not 0 <= args.power_rate <= 100:
         parser.error("--power-rate must be between 0 and 100")
+    if args.stop_soc is not None and not 0 <= args.stop_soc <= 100:
+        parser.error("--stop-soc must be between 0 and 100")
 
     start_time = end_time = ac_charge = None
     if args.mode in SCHEDULE_REGISTERS:
@@ -148,7 +163,7 @@ def main():
         ac_charge = args.ac_charge or "allow"
 
     result = set_priority(args.mode, args.power_rate, start_time, end_time, ac_charge,
-                           args.host, args.port, args.device_id)
+                           args.stop_soc, args.host, args.port, args.device_id)
 
     print(f"Priority set to '{args.mode}' (register {PRIORITY_REGISTER} now reads {result['priority']}: "
           f"{PRIORITY_NAMES.get(result['priority'], 'unknown')})")
@@ -160,6 +175,8 @@ def main():
         print(f"{SCHEDULE_LABELS[args.mode]} schedule set (register {start_reg} now reads "
               f"{format_time(result['start_time'])}, register {stop_reg} now reads "
               f"{format_time(result['end_time'])}, slot 1 enabled)")
+    if "stop_soc" in result:
+        print(f"Charge stop SOC set (register {BAT_STOP_SOC_REGISTER} now reads {result['stop_soc']}%)")
     if "ac_charge" in result:
         print(f"AC charge set (register {AC_CHARGE_REGISTER} now reads {result['ac_charge']}: "
               f"{AC_CHARGE_NAMES.get(result['ac_charge'], 'unknown')})")

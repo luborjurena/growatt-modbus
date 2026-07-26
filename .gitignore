@@ -4,3 +4,4 @@ include/
 lib/
 pyvenv.cfg
 Growatt Inverter Modbus RTU Protocol_II V1_39-English-20240416.pdf
+growatt_protocol.txt
